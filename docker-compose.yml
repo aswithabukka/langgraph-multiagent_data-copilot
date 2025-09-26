@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: langgraph-data-copilot-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./charts:/app/charts
+      - ./app.db:/app/app.db
+    env_file:
+      - .env
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - CHART_DIR=/app/charts
+      - DATABASE_URL=sqlite:///./app.db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: langgraph-data-copilot-ui
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./ui:/app/ui
+    env_file:
+      - .env
+    environment:
+      - API_HOST=api
+      - API_PORT=8000
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+    depends_on:
+      - api
+    restart: unless-stopped

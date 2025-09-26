@@ -1,0 +1,2 @@
+# This file ensures the charts directory is tracked by git
+# while the actual chart files are ignored
