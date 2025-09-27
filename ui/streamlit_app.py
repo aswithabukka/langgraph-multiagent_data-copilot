@@ -29,7 +29,7 @@ st.set_page_config(
 
 # API configuration
 API_HOST = os.getenv("API_HOST", "localhost")
-API_PORT = os.getenv("API_PORT", "8012")
+API_PORT = os.getenv("API_PORT", "8017")
 API_URL = f"http://{API_HOST}:{API_PORT}/api"
 
 # Session state initialization
@@ -280,9 +280,21 @@ def get_table_schema(table_name: str):
         return {"schema": {}}
 
 
+def get_table_data(table_name: str):
+    """Get sample data from a table."""
+    try:
+        response = requests.get(f"{API_URL}/tables/{table_name}/data", timeout=10)
+        if response.status_code == 200:
+            return response.json()
+        return {"rows": [], "count": 0}
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error fetching table data: {str(e)}")
+        return {"rows": [], "count": 0}
+
+
 def show_database_info():
-    """Show database schema information."""
-    st.subheader("Database Schema")
+    """Show enhanced database schema information."""
+    st.markdown("### 🗄️ Database Schema Explorer")
     
     # Get tables
     schema_info = get_database_schema()
@@ -292,38 +304,130 @@ def show_database_info():
         st.info("No tables found in the database.")
         return
     
-    # Show tables
-    selected_table = st.selectbox("Select a table", tables)
+    # Database overview
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("📊 Total Tables", len(tables))
+    with col2:
+        st.metric("🔗 Database Type", "SQLite")
+    
+    st.markdown("---")
+    
+    # Table selection with enhanced styling
+    st.markdown("#### 📋 Select a Table to Explore")
+    selected_table = st.selectbox(
+        "Choose a table:",
+        tables,
+        help="Select a table to view its schema, data, and statistics"
+    )
     
     if selected_table:
-        # Get table schema
-        table_info = get_table_schema(selected_table)
-        schema = table_info.get("schema", {})
+        # Create tabs for different views
+        tab1, tab2, tab3 = st.tabs(["📊 Schema", "📋 Sample Data", "📈 Statistics"])
         
-        # Show columns
-        if "columns" in schema:
-            st.write("**Columns:**")
-            columns_data = []
-            for col in schema["columns"]:
-                columns_data.append({
-                    "Name": col.get("name"),
-                    "Type": col.get("type"),
-                    "Nullable": "Yes" if col.get("nullable") else "No",
-                    "Default": col.get("default"),
-                })
-            st.table(columns_data)
+        with tab1:
+            # Get table schema
+            table_info = get_table_schema(selected_table)
+            schema = table_info.get("schema", {})
+            
+            st.markdown(f"### 📋 Table: `{selected_table}`")
+            
+            # Show columns with enhanced styling
+            if "columns" in schema and schema["columns"]:
+                st.markdown("#### 🏗️ Column Information")
+                columns_data = []
+                for col in schema["columns"]:
+                    columns_data.append({
+                        "Column Name": col.get("name", ""),
+                        "Data Type": col.get("type", ""),
+                        "Nullable": "✅ Yes" if col.get("nullable") else "❌ No",
+                        "Default Value": col.get("default") or "None",
+                    })
+                
+                # Display as a styled dataframe
+                df = pd.DataFrame(columns_data)
+                st.dataframe(df, use_container_width=True)
+                
+                # Column count metric
+                st.metric("📋 Total Columns", len(columns_data))
+            
+            # Show primary key
+            if "primary_key" in schema:
+                pk = schema["primary_key"]
+                if pk and "constrained_columns" in pk:
+                    st.markdown("#### 🔑 Primary Key")
+                    st.info(f"🔑 **Primary Key:** {', '.join(pk['constrained_columns'])}")
+            
+            # Show indexes
+            if "indexes" in schema and schema["indexes"]:
+                st.markdown("#### 📇 Indexes")
+                for idx in schema["indexes"]:
+                    st.write(f"• **{idx.get('name')}**: {', '.join(idx.get('column_names', []))}")
         
-        # Show primary key
-        if "primary_key" in schema:
-            pk = schema["primary_key"]
-            if pk and "constrained_columns" in pk:
-                st.write(f"**Primary Key:** {', '.join(pk['constrained_columns'])}")
+        with tab2:
+            st.markdown(f"### 📋 Sample Data from `{selected_table}`")
+            
+            # Get sample data
+            with st.spinner("Loading sample data..."):
+                table_data = get_table_data(selected_table)
+                
+            if table_data.get("rows"):
+                # Show sample data
+                df = pd.DataFrame(table_data["rows"])
+                st.dataframe(df.head(10), use_container_width=True)
+                
+                if len(table_data["rows"]) > 10:
+                    st.info(f"Showing first 10 rows out of {len(table_data['rows'])} total rows")
+                else:
+                    st.success(f"Showing all {len(table_data['rows'])} rows")
+            else:
+                st.warning("No data found in this table or unable to fetch data.")
         
-        # Show indexes
-        if "indexes" in schema and schema["indexes"]:
-            st.write("**Indexes:**")
-            for idx in schema["indexes"]:
-                st.write(f"- {idx.get('name')}: {', '.join(idx.get('column_names', []))}")
+        with tab3:
+            st.markdown(f"### 📈 Statistics for `{selected_table}`")
+            
+            # Get table data for statistics
+            with st.spinner("Calculating statistics..."):
+                table_data = get_table_data(selected_table)
+                
+            if table_data.get("rows"):
+                df = pd.DataFrame(table_data["rows"])
+                
+                # Basic statistics
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("📊 Total Rows", len(df))
+                with col2:
+                    st.metric("📋 Total Columns", len(df.columns))
+                with col3:
+                    # Calculate null values
+                    null_count = df.isnull().sum().sum()
+                    st.metric("❌ Null Values", null_count)
+                
+                # Column statistics
+                st.markdown("#### 📊 Column Statistics")
+                stats_data = []
+                for col in df.columns:
+                    col_data = df[col]
+                    stats_data.append({
+                        "Column": col,
+                        "Data Type": str(col_data.dtype),
+                        "Non-Null Count": col_data.count(),
+                        "Null Count": col_data.isnull().sum(),
+                        "Unique Values": col_data.nunique(),
+                    })
+                
+                stats_df = pd.DataFrame(stats_data)
+                st.dataframe(stats_df, use_container_width=True)
+                
+                # Show data types distribution
+                st.markdown("#### 🏷️ Data Types Distribution")
+                dtype_counts = df.dtypes.value_counts()
+                for dtype, count in dtype_counts.items():
+                    st.write(f"• **{dtype}**: {count} columns")
+                    
+            else:
+                st.warning("No data available for statistics calculation.")
 
 
 def main():

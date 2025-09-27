@@ -245,6 +245,7 @@ def explainer_agent(state: GraphState) -> Dict:
     # Update state
     return {
         "answer": response.content,
+        "sql": state.sql,  # Pass through the SQL query
         "history": state.history + [history_entry],
         "processing_end_time": datetime.now(),
         "completed_agents": state.completed_agents + ["explainer"],

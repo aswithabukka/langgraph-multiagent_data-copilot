@@ -81,6 +81,7 @@ class QueryResponse(BaseModel):
     """Response model for the API endpoint."""
     
     answer: str = Field(..., description="Generated answer to the query")
+    sql: Optional[str] = Field(None, description="SQL query that was executed")
     chart_url: Optional[str] = Field(None, description="URL to generated chart")
     rows: List[Dict[str, Any]] = Field(default_factory=list, description="Data rows (max 50)")
     df_summary: Optional[Dict[str, Any]] = Field(None, description="DataFrame summary")

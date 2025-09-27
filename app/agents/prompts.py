@@ -27,6 +27,7 @@ Available database schema (7 interconnected tables):
 
 6. **orders** - Order header information
    - id, customer_id, sales_rep_id, order_date, ship_date, delivery_date, status, shipping_cost, tax_amount, discount_amount, notes
+   - Valid status values: 'pending', 'shipped', 'delivered' (all lowercase)
 
 7. **order_items** - Individual line items within orders
    - id, order_id, product_id, quantity, unit_price, discount_percentage
@@ -80,6 +81,7 @@ Available database schema (7 interconnected tables):
 
 6. **orders** - Order header information
    - id, customer_id, sales_rep_id, order_date, ship_date, delivery_date, status, shipping_cost, tax_amount, discount_amount, notes
+   - Valid status values: 'pending', 'shipped', 'delivered' (all lowercase)
 
 7. **order_items** - Individual line items within orders
    - id, order_id, product_id, quantity, unit_price, discount_percentage

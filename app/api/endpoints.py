@@ -160,7 +160,7 @@ async def get_tables() -> Dict[str, List[str]]:
 
 
 @router.get("/tables/{table_name}")
-async def get_table(table_name: str) -> Dict:
+async def get_table_schema_endpoint(table_name: str) -> Dict:
     """
     Get schema information for a specific table.
     
@@ -170,15 +170,54 @@ async def get_table(table_name: str) -> Dict:
     Returns:
         Dictionary with table schema information
     """
+    from app.db.database import get_table_schema
+    
     try:
-        return {"table": table_name, "schema": get_table_schema(table_name)}
-    except ValueError as e:
-        return JSONResponse(
-            status_code=status.HTTP_404_NOT_FOUND,
-            content={"error": str(e)},
-        )
+        schema = get_table_schema(table_name)
+        return {"schema": schema}
     except Exception as e:
-        return JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"error": str(e)},
-        )
+        return {"error": str(e), "schema": {}}
+
+
+@router.get("/tables/{table_name}/data")
+async def get_table_data(table_name: str, limit: int = 50) -> Dict:
+    """
+    Get sample data from a specific table.
+    
+    Args:
+        table_name: Name of the table
+        limit: Maximum number of rows to return (default: 50)
+        
+    Returns:
+        Dictionary with table data and count
+    """
+    from app.db.database import execute_query
+    
+    try:
+        # Sanitize table name to prevent SQL injection
+        if not table_name.replace('_', '').isalnum():
+            raise ValueError("Invalid table name")
+        
+        # Execute query to get sample data
+        query = f"SELECT * FROM {table_name} LIMIT {limit}"
+        rows = execute_query(query)
+        
+        # Get total count
+        count_query = f"SELECT COUNT(*) as total FROM {table_name}"
+        count_result = execute_query(count_query)
+        total_count = count_result[0]["total"] if count_result else 0
+        
+        return {
+            "rows": rows,
+            "count": len(rows),
+            "total_count": total_count,
+            "table_name": table_name
+        }
+    except Exception as e:
+        return {
+            "error": str(e),
+            "rows": [],
+            "count": 0,
+            "total_count": 0,
+            "table_name": table_name
+        }
