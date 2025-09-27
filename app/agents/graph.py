@@ -89,6 +89,7 @@ class ProcessResponse(TypedDict):
     """Response type for the process function."""
     
     answer: str
+    sql: Optional[str]
     chart_url: Optional[str]
     rows: List[Dict]
     df_summary: Optional[Dict]
@@ -115,6 +116,7 @@ async def process_query(request: ProcessRequest) -> ProcessResponse:
             answer = evaluate_arithmetic(request["query"])
             return {
                 "answer": answer,
+                "sql": None,
                 "chart_url": None,
                 "rows": [],
                 "df_summary": None,
@@ -126,6 +128,7 @@ async def process_query(request: ProcessRequest) -> ProcessResponse:
             answer = handle_off_topic_query(request["query"])
             return {
                 "answer": answer,
+                "sql": None,
                 "chart_url": None,
                 "rows": [],
                 "df_summary": None,
@@ -157,6 +160,7 @@ async def process_query(request: ProcessRequest) -> ProcessResponse:
         # Prepare response
         return {
             "answer": result.get("answer", ""),
+            "sql": result.get("sql"),  # Include SQL query
             "chart_url": result.get("chart_path"),
             "rows": result.get("rows", [])[:50],  # Limit to 50 rows
             "df_summary": result.get("df_summary"),

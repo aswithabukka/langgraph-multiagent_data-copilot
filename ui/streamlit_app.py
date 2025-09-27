@@ -19,9 +19,17 @@ import streamlit as st
 # Load environment variables from .env file
 dotenv.load_dotenv(Path(__file__).parent.parent / ".env")
 
+# Configure Streamlit page
+st.set_page_config(
+    page_title=" LangGraph Data Analysis Copilot",
+    page_icon=" ",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 # API configuration
 API_HOST = os.getenv("API_HOST", "localhost")
-API_PORT = os.getenv("API_PORT", "8010")
+API_PORT = os.getenv("API_PORT", "8012")
 API_URL = f"http://{API_HOST}:{API_PORT}/api"
 
 # Session state initialization
@@ -31,8 +39,166 @@ if "session_id" not in st.session_state:
 if "history" not in st.session_state:
     st.session_state.history = []
 
+# Custom CSS for better styling
+st.markdown("""
+<style>
+    /* Main background and theme */
+    .main {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    /* Sidebar styling */
+    .css-1d391kg {
+        background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
+    }
+    
+    /* Title styling */
+    .main-title {
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: 3rem;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 2rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    /* Query input styling */
+    .stTextArea > div > div > textarea {
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid #667eea;
+        border-radius: 15px;
+        color: white;
+        font-size: 16px;
+        padding: 15px;
+    }
+    
+    /* Button styling */
+    .stButton > button {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        padding: 0.5rem 2rem;
+        font-weight: bold;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+    
+    /* Results container */
+    .results-container {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 2rem;
+        margin: 1rem 0;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+    }
+    
+    /* SQL query container */
+    .sql-container {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        border-left: 4px solid #667eea;
+        font-family: 'Courier New', monospace;
+    }
+    
+    /* Answer container */
+    .answer-container {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        border-left: 4px solid #2ecc71;
+    }
+    
+    /* Chart container */
+    .chart-container {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        text-align: center;
+        border: 2px dashed rgba(255, 255, 255, 0.3);
+    }
+    
+    /* Data table styling */
+    .dataframe {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    /* Metrics styling */
+    .metric-container {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        padding: 1rem;
+        margin: 0.5rem;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 2px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px 10px 0 0;
+        color: white;
+        font-weight: bold;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+    }
+    
+    /* Expander styling */
+    .streamlit-expanderHeader {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        color: white;
+    }
+    
+    /* Success/Error message styling */
+    .stSuccess {
+        background: rgba(46, 204, 113, 0.2);
+        border: 1px solid #2ecc71;
+        border-radius: 10px;
+    }
+    
+    .stError {
+        background: rgba(231, 76, 60, 0.2);
+        border: 1px solid #e74c3c;
+        border-radius: 10px;
+    }
+    
+    /* Loading spinner */
+    .stSpinner {
+        color: #667eea;
+    }
+    
+    /* Hide Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+</style>
+""", unsafe_allow_html=True)
 
-def query_api(query: str) -> Dict:
+
+def query_api(query: str) -> dict:
     """
     Send a query to the API and return the response.
     
@@ -162,52 +328,98 @@ def show_database_info():
 
 def main():
     """Main Streamlit application."""
-    # Set page config
-    st.set_page_config(
-        page_title="Data Analysis Copilot",
-        page_icon="📊",
-        layout="wide",
-    )
     
-    # Debug information
-    st.sidebar.write("### Debug Info")
-    st.sidebar.write(f"API URL: {API_URL}")
-    try:
-        health_response = requests.get(f"{API_URL}/health", timeout=5)
-        st.sidebar.success(f"API Health: {health_response.status_code}")
-        st.sidebar.json(health_response.json())
-    except Exception as e:
-        st.sidebar.error(f"API Connection Error: {str(e)}")
-        st.error("⚠️ Cannot connect to the API server. Please ensure the FastAPI server is running.")
-        return
+    # Enhanced Header with gradient background
+    st.markdown("""
+    <div class="main-title">
+        🤖 LangGraph Data Analysis Copilot
+    </div>
+    """, unsafe_allow_html=True)
     
+    # Subtitle with styling
+    st.markdown("""
+    <div style="text-align: center; margin-bottom: 2rem; font-size: 1.2rem; color: rgba(255,255,255,0.8);">
+        🚀 Ask natural language questions and get instant insights with AI-powered analytics
+    </div>
+    """, unsafe_allow_html=True)
     
-    # Header
-    st.title("📊 LangGraph Data Analysis Copilot")
-    st.markdown(
-        """
-        Ask natural language questions about your data and get instant insights!
+    # Sidebar with enhanced styling
+    with st.sidebar:
+        st.markdown("### 🔧 System Status")
         
-        Example questions:
-        - "Average sales per region in Q2"
-        - "Which product category had the highest sales in 2024?"
-        - "Show me monthly sales trends by region"
-        - "What is 2+2?" (non-SQL question)
-        """
-    )
+        # API Health Check with visual indicators
+        try:
+            health_response = requests.get(f"{API_URL}/health", timeout=5)
+            if health_response.status_code == 200:
+                st.success("🟢 API Server Online")
+                health_data = health_response.json()
+                st.metric("Response Time", f"{health_data.get('timestamp', 'N/A')}")
+            else:
+                st.error("🔴 API Server Issues")
+        except Exception as e:
+            st.error("🔴 API Server Offline")
+            st.error("⚠️ Cannot connect to the API server. Please ensure the FastAPI server is running.")
+            return
+        
+        st.markdown("---")
+        st.markdown("### 💡 Example Queries")
+        st.markdown("""
+        **📊 Business Analytics:**
+        - "Show profit margins by category with chart"
+        - "Top 5 customers by revenue"
+        - "Sales performance by region"
+        
+        **⚡ Quick Math:**
+        - "What is 25 * 4 + 10?"
+        - "Calculate (100 + 50) / 3"
+        
+        **🔍 Data Exploration:**
+        - "How many products in each category?"
+        - "List all sales representatives"
+        """)
+        
+        st.markdown("---")
+        st.markdown("### 🗄️ Database Info")
+        st.info(f"Connected to: {API_URL}")
+        
+        # Quick stats
+        try:
+            tables_response = requests.get(f"{API_URL}/tables", timeout=5)
+            if tables_response.status_code == 200:
+                tables = tables_response.json().get("tables", [])
+                st.metric("Tables Available", len(tables))
+                with st.expander("View Tables"):
+                    for table in tables:
+                        st.write(f"📋 {table}")
+        except:
+            st.warning("Could not fetch table info")
     
     # Create tabs
     tab1, tab2 = st.tabs(["Query Data", "Database Info"])
     
     with tab1:
-        # Query input
+        # Query input with enhanced styling
+        st.markdown("### 💭 Ask Your Question")
+        st.markdown("Type your question below and click Analyze to get insights from your data:")
+        
         with st.form(key="query_form"):
-            query = st.text_area("Ask a question about your data:", height=100)
-            submit_button = st.form_submit_button("Analyze")
+            query = st.text_area(
+                "🔍 Enter your query here:",
+                height=120,
+                placeholder="e.g., 'Show me profit margins by product category with a chart' or 'What is 25 * 4?'",
+                help="You can ask business questions, request charts, or even simple math calculations!"
+            )
+            
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                submit_button = st.form_submit_button(
+                    "🚀 Analyze",
+                    use_container_width=True
+                )
         
         # Process query
         if submit_button and query:
-            with st.spinner("Analyzing data..."):
+            with st.spinner("🤖 Analyzing your query..."):
                 # Call API
                 result = query_api(query)
                 
@@ -223,47 +435,117 @@ def main():
         if st.session_state.history:
             latest = st.session_state.history[-1]
             
-            st.markdown("## Results")
+            # Results container with styling
+            st.markdown('<div class="results-container">', unsafe_allow_html=True)
             
-            # Display answer
-            st.markdown("### Answer")
+            # Query info header
+            col1, col2, col3 = st.columns([2, 1, 1])
+            with col1:
+                st.markdown(f"**📝 Query:** {latest['query']}")
+            with col2:
+                processing_time = latest["result"].get("processing_time_ms", 0)
+                st.metric("⏱️ Processing Time", f"{processing_time:.1f}ms")
+            with col3:
+                if latest["result"].get("error"):
+                    st.error("❌ Error")
+                else:
+                    st.success("✅ Success")
+            
+            st.markdown("---")
+            
+            # SQL Query Section (if available)
+            if latest["result"].get("sql"):
+                st.markdown("### 🗄️ SQL Query Executed")
+                st.markdown('<div class="sql-container">', unsafe_allow_html=True)
+                st.code(latest["result"]["sql"], language="sql")
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+                # Query metrics
+                if latest["result"].get("rows"):
+                    row_count = len(latest["result"]["rows"])
+                    st.info(f"📊 Query returned {row_count} rows")
+            
+            # Answer Section
+            st.markdown("### 💬 Analysis Result")
+            st.markdown('<div class="answer-container">', unsafe_allow_html=True)
             st.markdown(latest["result"]["answer"])
+            st.markdown('</div>', unsafe_allow_html=True)
             
-            # Display chart if available
+            # Chart Section
             if latest["result"].get("chart_url"):
-                st.markdown("### Chart")
+                st.markdown("### 📈 Visualization")
+                st.markdown('<div class="chart-container">', unsafe_allow_html=True)
                 chart_url = f"http://{API_HOST}:{API_PORT}{latest['result']['chart_url']}"
                 try:
-                    st.image(chart_url, caption="Generated Chart", use_column_width=True)
+                    st.image(chart_url, caption="📊 Generated Chart", use_column_width=True)
+                    st.success("🎨 Chart generated successfully!")
                 except Exception as e:
-                    st.error(f"Could not display chart: {str(e)}")
-                    st.write(f"Chart URL: {chart_url}")
-                    # Try to display as a link
-                    st.markdown(f"[View Chart]({chart_url})")
+                    st.error(f"❌ Could not display chart: {str(e)}")
+                    st.markdown(f"🔗 [View Chart Directly]({chart_url})")
+                st.markdown('</div>', unsafe_allow_html=True)
             
-            # Display data
+            # Data Section
             if latest["result"].get("rows"):
-                st.markdown("### Data")
+                st.markdown("### 📋 Data Results")
+                
+                # Data summary metrics
+                df_summary = latest["result"].get("df_summary")
+                if df_summary:
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("📊 Rows", df_summary.get("shape", [0])[0])
+                    with col2:
+                        st.metric("📋 Columns", df_summary.get("shape", [0, 0])[1])
+                    with col3:
+                        null_count = sum(df_summary.get("null_counts", {}).values())
+                        st.metric("❌ Null Values", null_count)
+                
+                # Display table
                 display_data_table(
                     latest["result"]["rows"],
                     latest["result"].get("df_summary"),
                 )
+            
+            # Error Section
+            if latest["result"].get("error"):
+                st.markdown("### ❌ Error Details")
+                st.error(latest["result"]["error"])
+            
+            st.markdown('</div>', unsafe_allow_html=True)
         
         # History section
         if len(st.session_state.history) > 1:
-            st.markdown("## History")
+            st.markdown("## 📚 Query History")
+            
+            # Add clear history button
+            if st.button("🗑️ Clear History"):
+                st.session_state.history = []
+                st.rerun()
             
             for i, item in enumerate(reversed(st.session_state.history[:-1])):
-                with st.expander(f"{item['timestamp']} - {item['query'][:50]}...", expanded=False):
+                with st.expander(f"🕒 {item['timestamp']} - {item['query'][:50]}...", expanded=False):
+                    # Show SQL query if available
+                    if item["result"].get("sql"):
+                        st.markdown("**🗄️ SQL Query:**")
+                        st.code(item["result"]["sql"], language="sql")
+                        st.markdown("---")
+                    
+                    # Show answer
+                    st.markdown("**💬 Result:**")
                     st.markdown(item["result"]["answer"])
                     
+                    # Show chart if available
                     if item["result"].get("chart_url"):
                         chart_url = f"http://{API_HOST}:{API_PORT}{item['result']['chart_url']}"
                         try:
-                            st.image(chart_url, caption="Generated Chart", use_column_width=True)
+                            st.image(chart_url, caption="📊 Generated Chart", use_column_width=True)
                         except Exception as e:
-                            st.error(f"Could not display chart: {str(e)}")
-                            st.markdown(f"[View Chart]({chart_url})")
+                            st.error(f"❌ Could not display chart: {str(e)}")
+                            st.markdown(f"🔗 [View Chart]({chart_url})")
+                    
+                    # Show processing time
+                    processing_time = item["result"].get("processing_time_ms", 0)
+                    st.caption(f"⏱️ Processing time: {processing_time:.1f}ms")
     
     with tab2:
         # Show database schema information

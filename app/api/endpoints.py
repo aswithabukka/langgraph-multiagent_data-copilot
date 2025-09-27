@@ -49,6 +49,7 @@ async def infer(request: QueryRequest) -> Dict:
         # Return response
         return {
             "answer": result["answer"],
+            "sql": result.get("sql"),  # Include SQL query
             "chart_url": chart_url,
             "rows": result["rows"],
             "df_summary": result["df_summary"],
@@ -60,6 +61,7 @@ async def infer(request: QueryRequest) -> Dict:
         # Handle errors
         return {
             "answer": f"Error processing query: {str(e)}",
+            "sql": None,
             "chart_url": None,
             "rows": [],
             "df_summary": None,
