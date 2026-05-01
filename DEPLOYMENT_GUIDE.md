@@ -163,6 +163,12 @@ API_PORT=8000
 # CORS — comma-separated list of origins allowed to call the API
 CORS_ALLOW_ORIGINS=http://localhost:8501,http://127.0.0.1:8501
 
+# Optional LLM cache. `memory` (default when set to 1/true/yes) caches
+# identical (model, prompt, temperature) tuples in-process. Use `sqlite`
+# for a persistent cache (path via LLM_CACHE_PATH; needs langchain-community).
+LLM_CACHE=memory
+# LLM_CACHE_PATH=./.llm_cache.sqlite
+
 # Database
 DATABASE_URL=sqlite:///./data.db
 
