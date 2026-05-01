@@ -1,8 +1,11 @@
 """
 Tests for the SQL agent.
 
-This module tests the SQL generation and validation functionality.
+`test_sql_agent` makes a live LLM call and is skipped unless `OPENAI_API_KEY`
+is set in the environment. The pure-function tests run unconditionally.
 """
+
+import os
 
 import pytest
 
@@ -63,6 +66,10 @@ def test_validate_sql_query():
     assert not validate_sql_query("SELECT * FROM orders; DELETE FROM orders")[0]
 
 
+@pytest.mark.skipif(
+    not os.getenv("OPENAI_API_KEY"),
+    reason="sql_agent makes a live OpenAI call; set OPENAI_API_KEY to run",
+)
 @pytest.mark.asyncio
 async def test_sql_agent():
     """Test SQL agent functionality."""

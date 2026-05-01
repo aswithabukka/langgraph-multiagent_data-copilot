@@ -53,7 +53,7 @@ async def sql_agent(state: GraphState) -> Dict:
             "sql": sql_query,
             "sql_error": f"Invalid SQL query: {error_message}",
             "next_agent": "explainer",
-            "completed_agents": state.completed_agents + ["sql"],
+            "completed_agents": state.completed_agents + ["sql_agent"],
         }
 
     try:
@@ -63,7 +63,7 @@ async def sql_agent(state: GraphState) -> Dict:
             "sql": sql_query,
             "sql_error": str(e),
             "next_agent": "explainer",
-            "completed_agents": state.completed_agents + ["sql"],
+            "completed_agents": state.completed_agents + ["sql_agent"],
         }
 
     requires_chart = any(step.requires_chart for step in state.plan)
@@ -72,5 +72,5 @@ async def sql_agent(state: GraphState) -> Dict:
         "rows": rows,
         "df_summary": df_summary,
         "next_agent": "chart" if requires_chart else "explainer",
-        "completed_agents": state.completed_agents + ["sql"],
+        "completed_agents": state.completed_agents + ["sql_agent"],
     }

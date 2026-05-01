@@ -162,7 +162,8 @@ def _safe_eval(node: ast.AST) -> float:
 
 def evaluate_arithmetic(query: str) -> str:
     """Evaluate a simple arithmetic question — never uses eval()."""
-    q = query.lower().strip()
+    # Normalize unicode operators *before* the regex match so "8×3" extracts.
+    q = query.lower().strip().replace("×", "*").replace("÷", "/")
 
     expression = None
     for pattern in _EXPR_PATTERNS:
@@ -174,7 +175,7 @@ def evaluate_arithmetic(query: str) -> str:
     if not expression:
         return "I couldn't find a mathematical expression in your query."
 
-    expression = re.sub(r"\s+", "", expression).replace("×", "*").replace("÷", "/")
+    expression = re.sub(r"\s+", "", expression)
 
     if not re.match(r"^[\d+\-*/().]+$", expression):
         return "The expression contains invalid characters."

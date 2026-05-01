@@ -37,13 +37,13 @@ def test_route_planner_to_sql_when_sql_required():
         completed_agents=["planner"],
         plan=[_step(requires_sql=True)],
     )
-    assert route_next(state) == "sql"
+    assert route_next(state) == "sql_agent"
 
 
 def test_route_sql_to_chart_when_chart_required():
     state = GraphState(
         user_query="show me sales by region as a bar chart",
-        completed_agents=["planner", "sql"],
+        completed_agents=["planner", "sql_agent"],
         plan=[_step(requires_sql=True, requires_chart=True)],
         sql="SELECT region, SUM(x) FROM orders GROUP BY region",
         rows=[{"region": "N", "sum": 1}],
@@ -54,7 +54,7 @@ def test_route_sql_to_chart_when_chart_required():
 def test_route_chart_to_explainer():
     state = GraphState(
         user_query="show me sales by region as a bar chart",
-        completed_agents=["planner", "sql", "chart"],
+        completed_agents=["planner", "sql_agent", "chart"],
         plan=[_step(requires_sql=True, requires_chart=True)],
         sql="SELECT 1",
         rows=[{"region": "N", "sum": 1}],
@@ -66,7 +66,7 @@ def test_route_chart_to_explainer():
 def test_route_terminates_after_explainer():
     state = GraphState(
         user_query="how many orders",
-        completed_agents=["planner", "sql", "chart", "explainer"],
+        completed_agents=["planner", "sql_agent", "chart", "explainer"],
         plan=[_step()],
         answer="There are 27 orders.",
     )
@@ -87,9 +87,9 @@ def test_route_skips_completed_next_agent():
     # If the agent was already completed, fall back to sequential routing.
     state = GraphState(
         user_query="x",
-        completed_agents=["planner", "sql"],
+        completed_agents=["planner", "sql_agent"],
         plan=[_step(requires_sql=True)],
-        next_agent="sql",  # already done
+        next_agent="sql_agent",  # already done
     )
     # No chart required → should advance to explainer.
     assert route_next(state) == "explainer"
@@ -99,7 +99,7 @@ def test_route_max_steps_breaks_loops():
     # 4 completed agents = hard limit, return END no matter what.
     state = GraphState(
         user_query="x",
-        completed_agents=["planner", "sql", "chart", "explainer"],
+        completed_agents=["planner", "sql_agent", "chart", "explainer"],
         plan=[_step()],
     )
     assert route_next(state) == END

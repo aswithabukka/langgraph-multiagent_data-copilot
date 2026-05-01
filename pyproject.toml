@@ -2,6 +2,13 @@
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
+# Tell setuptools which package to install. Without this, automatic
+# discovery picks up `app/`, `ui/`, and `charts/` as ambiguous top-level
+# packages and `pip install -e .` fails.
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["tests*", "scripts*", "ui*", "charts*"]
+
 [project]
 name = "langgraph-data-copilot"
 version = "0.1.0"

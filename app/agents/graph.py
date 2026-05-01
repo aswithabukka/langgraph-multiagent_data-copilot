@@ -45,11 +45,11 @@ def route_next(state: GraphState) -> str:
     if "planner" not in state.completed_agents:
         return "planner"
     if (
-        "sql" not in state.completed_agents
+        "sql_agent" not in state.completed_agents
         and state.plan
         and any(step.requires_sql for step in state.plan)
     ):
-        return "sql"
+        return "sql_agent"
     if (
         "chart" not in state.completed_agents
         and state.plan
@@ -66,12 +66,14 @@ def create_graph() -> StateGraph:
     graph = StateGraph(GraphState)
 
     graph.add_node("planner", planner_agent)
-    graph.add_node("sql", sql_agent)
+    # Node name "sql_agent" (not "sql") because LangGraph forbids nodes that
+    # share a name with a GraphState field (`state.sql` holds the query).
+    graph.add_node("sql_agent", sql_agent)
     graph.add_node("chart", chart_agent)
     graph.add_node("explainer", explainer_agent)
 
     graph.set_entry_point("planner")
-    for node in ("planner", "sql", "chart", "explainer"):
+    for node in ("planner", "sql_agent", "chart", "explainer"):
         graph.add_conditional_edges(node, route_next)
 
     return graph.compile(

@@ -10,6 +10,7 @@ unit-test without mocks.
 from __future__ import annotations
 
 import json
+import textwrap
 from typing import Any, Dict, List
 
 from app.models.state import PlanStep
@@ -100,14 +101,16 @@ def extract_sql_query(sql_text: str) -> str:
     """Pull a SQL statement out of the LLM response.
 
     Handles ```sql ...``` fences, plain ``` ...``` fences, and bare SQL.
+    Dedents the fenced body so SQL nested inside an indented prompt doesn't
+    keep the prompt's leading whitespace.
     """
     if "```sql" in sql_text:
-        body = sql_text.split("```sql", 1)[1]
-        return body.split("```", 1)[0].strip()
+        body = sql_text.split("```sql", 1)[1].split("```", 1)[0]
+        return textwrap.dedent(body).strip()
 
     if "```" in sql_text:
-        body = sql_text.split("```", 1)[1]
-        return body.split("```", 1)[0].strip()
+        body = sql_text.split("```", 1)[1].split("```", 1)[0]
+        return textwrap.dedent(body).strip()
 
     return sql_text.strip()
 

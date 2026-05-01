@@ -83,7 +83,7 @@ def planner_agent(state: GraphState) -> Dict:
     ]
     return {
         "plan": plan,
-        "next_agent": "sql",
+        "next_agent": "sql_agent",
         "completed_agents": state.completed_agents + ["planner"],
     }
 
