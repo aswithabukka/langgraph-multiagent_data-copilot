@@ -5,6 +5,7 @@ This module defines the API endpoints for the application.
 """
 
 import os
+import re
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -18,7 +19,11 @@ from app.models.state import QueryRequest, QueryResponse
 router = APIRouter()
 
 # Get chart directory from environment or use default
-CHART_DIR = os.getenv("CHART_DIR", "./charts")
+CHART_DIR = os.path.realpath(os.getenv("CHART_DIR", "./charts"))
+
+# Charts are written by the chart agent with safe filenames (UUID + extension);
+# accept only that shape to prevent path traversal via the URL.
+_CHART_FILENAME_RE = re.compile(r"^[A-Za-z0-9_\-]+\.(png|jpg|jpeg|svg)$")
 
 
 @router.post("/infer", response_model=QueryResponse)
@@ -84,14 +89,19 @@ async def get_chart(filename: str) -> FileResponse:
     Raises:
         HTTPException: If the chart file is not found
     """
-    # Construct file path
-    file_path = os.path.join(CHART_DIR, filename)
-    
-    # Check if file exists
+    # Reject anything that doesn't match the expected chart-filename shape
+    # (defends against path traversal like `../../etc/passwd`).
+    if not _CHART_FILENAME_RE.match(filename):
+        raise HTTPException(status_code=404, detail="Chart not found")
+
+    # Resolve and confine the path to CHART_DIR
+    file_path = os.path.realpath(os.path.join(CHART_DIR, filename))
+    if os.path.commonpath([file_path, CHART_DIR]) != CHART_DIR:
+        raise HTTPException(status_code=404, detail="Chart not found")
+
     if not os.path.isfile(file_path):
         raise HTTPException(status_code=404, detail="Chart not found")
-    
-    # Return file
+
     return FileResponse(file_path)
 
 
@@ -183,41 +193,38 @@ async def get_table_schema_endpoint(table_name: str) -> Dict:
 async def get_table_data(table_name: str, limit: int = 50) -> Dict:
     """
     Get sample data from a specific table.
-    
+
     Args:
         table_name: Name of the table
-        limit: Maximum number of rows to return (default: 50)
-        
+        limit: Maximum number of rows to return (default: 50, capped at 1000)
+
     Returns:
         Dictionary with table data and count
     """
     from app.db.database import execute_query
-    
+
+    # Whitelist the table against the live schema — prevents both injection
+    # and access to internal/sqlite_* tables.
+    allowed = set(get_all_tables())
+    if table_name not in allowed:
+        raise HTTPException(status_code=404, detail="Unknown table")
+
+    # Bound the limit so a caller can't ask for the whole table.
+    safe_limit = max(1, min(int(limit), 1000))
+
     try:
-        # Sanitize table name to prevent SQL injection
-        if not table_name.replace('_', '').isalnum():
-            raise ValueError("Invalid table name")
-        
-        # Execute query to get sample data
-        query = f"SELECT * FROM {table_name} LIMIT {limit}"
-        rows = execute_query(query)
-        
-        # Get total count
-        count_query = f"SELECT COUNT(*) as total FROM {table_name}"
-        count_result = execute_query(count_query)
+        # `table_name` is now whitelist-bounded, so interpolating it is safe.
+        # SQLite parameter binding does not support identifiers, only values.
+        rows = execute_query(f"SELECT * FROM {table_name} LIMIT {safe_limit}")
+
+        count_result = execute_query(f"SELECT COUNT(*) AS total FROM {table_name}")
         total_count = count_result[0]["total"] if count_result else 0
-        
+
         return {
             "rows": rows,
             "count": len(rows),
             "total_count": total_count,
-            "table_name": table_name
+            "table_name": table_name,
         }
     except Exception as e:
-        return {
-            "error": str(e),
-            "rows": [],
-            "count": 0,
-            "total_count": 0,
-            "table_name": table_name
-        }
+        raise HTTPException(status_code=500, detail=str(e))

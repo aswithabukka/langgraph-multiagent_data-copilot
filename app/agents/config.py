@@ -36,11 +36,9 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", DEFAULT_OPENAI_MODEL)
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", DEFAULT_ANTHROPIC_MODEL)
 
-# Debug logging
-logger.info(f"OPENAI_API_KEY exists: {OPENAI_API_KEY is not None}")
-logger.info(f"OPENAI_MODEL: {OPENAI_MODEL}")
-logger.info(f"ANTHROPIC_API_KEY exists: {ANTHROPIC_API_KEY is not None}")
-logger.info(f"ANTHROPIC_MODEL: {ANTHROPIC_MODEL}")
+# Startup logging — never log the key itself, even a prefix.
+logger.info("OpenAI configured: %s (model=%s)", bool(OPENAI_API_KEY), OPENAI_MODEL)
+logger.info("Anthropic configured: %s (model=%s)", bool(ANTHROPIC_API_KEY), ANTHROPIC_MODEL)
 
 
 def get_llm(provider: str = "openai", **kwargs) -> ChatOpenAI | ChatAnthropic:
@@ -63,13 +61,10 @@ def get_llm(provider: str = "openai", **kwargs) -> ChatOpenAI | ChatAnthropic:
     }
     
     if provider.lower() == "openai":
-        # Debug logging for OpenAI API key
-        if OPENAI_API_KEY:
-            logger.info(f"Using OpenAI API key (first 5 chars): {OPENAI_API_KEY[:5]}...")
-        else:
+        if not OPENAI_API_KEY:
             logger.error("OpenAI API key not found in environment variables")
             raise ValueError("OpenAI API key not found in environment variables")
-        
+
         return ChatOpenAI(
             api_key=OPENAI_API_KEY,
             model=kwargs.get("model", OPENAI_MODEL),
