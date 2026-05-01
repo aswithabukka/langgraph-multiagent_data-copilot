@@ -86,7 +86,7 @@ def extract_chart_config(chart_text: str) -> Dict:
     return config
 
 
-def chart_agent(state: GraphState) -> Dict:
+async def chart_agent(state: GraphState) -> Dict:
     """
     Generate a chart based on SQL query results.
     
@@ -124,7 +124,7 @@ def chart_agent(state: GraphState) -> Dict:
         SystemMessage(content="You are a data visualization assistant."),
         HumanMessage(content=prompt),
     ]
-    response = llm.invoke(messages)
+    response = await llm.ainvoke(messages)
     
     # Extract chart configuration
     chart_config = extract_chart_config(response.content)

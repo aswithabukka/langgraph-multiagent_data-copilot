@@ -59,7 +59,7 @@ def format_plan_for_prompt(plan: List[PlanStep]) -> str:
     return plan_text
 
 
-def sql_agent(state: GraphState) -> Dict:
+async def sql_agent(state: GraphState) -> Dict:
     """
     Generate and execute SQL query based on the user's question.
     
@@ -89,7 +89,7 @@ def sql_agent(state: GraphState) -> Dict:
         SystemMessage(content="You are a SQL query generation assistant."),
         HumanMessage(content=prompt),
     ]
-    response = llm.invoke(messages)
+    response = await llm.ainvoke(messages)
     
     # Extract SQL query
     sql_query = extract_sql_query(response.content)

@@ -156,7 +156,7 @@ def handle_off_topic_query(query: str) -> str:
         return f"I'm a data analysis copilot designed to help you understand your sales data. I can answer questions about your orders, customers, products, and revenue using natural language. Try asking something like:\n\n• 'Show me total sales by region'\n• 'What are the top 5 products?'\n• 'How many customers do we have?'\n• 'Create a chart of monthly revenue'\n\nWhat would you like to know about your data?"
 
 
-def explainer_agent(state: GraphState) -> Dict:
+async def explainer_agent(state: GraphState) -> Dict:
     """
     Generate a natural language explanation of the data analysis results.
     
@@ -232,7 +232,7 @@ def explainer_agent(state: GraphState) -> Dict:
         SystemMessage(content="You are a data explanation assistant."),
         HumanMessage(content=prompt),
     ]
-    response = llm.invoke(messages)
+    response = await llm.ainvoke(messages)
     
     # Create history entry
     history_entry = HistoryEntry(

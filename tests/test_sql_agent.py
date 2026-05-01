@@ -86,7 +86,7 @@ async def test_sql_agent():
     
     # Just test that the function doesn't raise an exception
     try:
-        result = sql_agent(state)
+        result = await sql_agent(state)
         assert isinstance(result, dict)
     except Exception as e:
         pytest.fail(f"SQL agent raised an exception: {e}")
