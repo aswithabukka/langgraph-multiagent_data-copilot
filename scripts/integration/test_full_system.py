@@ -3,13 +3,16 @@
 Full system test for the LangGraph Data Analysis Copilot.
 """
 
+import os
 import requests
 import time
+
+API_BASE = os.getenv("API_URL", "http://localhost:8000/api")
 
 def test_api_health():
     """Test API health endpoint."""
     try:
-        response = requests.get("http://localhost:8001/api/health", timeout=5)
+        response = requests.get(f"{API_BASE}/health", timeout=5)
         print(f"✅ API Health: {response.status_code}")
         print(f"   Response: {response.json()}")
         return True
@@ -21,7 +24,7 @@ def test_arithmetic_query():
     """Test simple arithmetic query."""
     try:
         response = requests.post(
-            "http://localhost:8001/api/infer",
+            f"{API_BASE}/infer",
             json={"query": "What is 10 + 5?"},
             timeout=10
         )
@@ -38,7 +41,7 @@ def test_database_query():
     """Test database query."""
     try:
         response = requests.post(
-            "http://localhost:8001/api/infer",
+            f"{API_BASE}/infer",
             json={"query": "How many orders are in the database?"},
             timeout=30
         )
@@ -54,7 +57,7 @@ def test_database_query():
 def test_tables_endpoint():
     """Test tables endpoint."""
     try:
-        response = requests.get("http://localhost:8001/api/tables", timeout=5)
+        response = requests.get(f"{API_BASE}/tables", timeout=5)
         print(f"✅ Tables Endpoint: {response.status_code}")
         print(f"   Tables: {response.json()}")
         return True
