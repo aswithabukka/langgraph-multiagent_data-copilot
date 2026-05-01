@@ -1,28 +1,27 @@
-# Use Python 3.11 slim image
+# Streamlit UI image. Kept minimal — runs as non-root and installs only
+# the small set of packages the UI actually needs.
 FROM python:3.11-slim
 
-# Set working directory
 WORKDIR /app
 
-# Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# Streamlit doesn't need build-essential at runtime; pulling pre-built wheels.
+RUN pip install --upgrade pip && \
+    pip install \
+        "streamlit>=1.28.0,<2" \
+        "pandas>=2.1.3,<3" \
+        "requests>=2.31.0,<3"
 
-# Install Streamlit and other UI dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir streamlit pandas requests
-
-# Copy UI code
 COPY ui /app/ui
 
-# Expose Streamlit port
+RUN useradd --create-home --shell /usr/sbin/nologin appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
 EXPOSE 8501
 
-# Run the Streamlit application
-CMD ["streamlit", "run", "ui/streamlit_app.py"]
+CMD ["streamlit", "run", "ui/streamlit_app.py", "--server.address=0.0.0.0", "--server.port=8501"]
