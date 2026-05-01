@@ -4,11 +4,12 @@ Comprehensive test suite for the LangGraph Data Analysis Copilot.
 Tests arithmetic, off-topic, and data queries.
 """
 
+import os
 import requests
 import time
 import json
 
-API_URL = "http://localhost:8007/api"
+API_URL = os.getenv("API_URL", "http://localhost:8000/api")
 
 def test_query(query, expected_type, description):
     """Test a single query and return results."""

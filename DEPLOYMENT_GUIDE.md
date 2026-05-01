@@ -16,8 +16,10 @@ cd langgraph-multiagent_data-copilot
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies (project metadata lives in pyproject.toml)
+pip install -e .
+# Optional: dev tooling (pytest, ruff, mypy, ...)
+pip install -e ".[dev]"
 ```
 
 ### **2. Environment Configuration**
@@ -50,8 +52,8 @@ streamlit run ui/streamlit_app.py
 
 ### **5. Access Applications**
 - **Streamlit UI**: http://localhost:8501
-- **API Server**: http://localhost:8008
-- **API Docs**: http://localhost:8008/docs
+- **API Server**: http://localhost:8000
+- **API Docs**: http://localhost:8000/docs
 
 ---
 
@@ -75,7 +77,7 @@ docker build -t langgraph-api .
 docker build -f Dockerfile.streamlit -t langgraph-ui .
 
 # Run containers
-docker run -p 8008:8008 --env-file .env langgraph-api
+docker run -p 8000:8000 --env-file .env langgraph-api
 docker run -p 8501:8501 langgraph-ui
 ```
 
@@ -85,22 +87,18 @@ docker run -p 8501:8501 langgraph-ui
 
 ### **Run Test Suite**
 ```bash
-# Comprehensive system test
-python test_comprehensive.py
-
-# Full system integration test
-python test_full_system.py
-
-# Database schema test
-python test_new_schema.py
-
-# Individual component tests
+# Unit tests (no live server required)
 python -m pytest tests/
+
+# Integration scripts (require a running API on $API_URL, defaults to localhost:8000)
+python scripts/integration/test_comprehensive.py
+python scripts/integration/test_full_system.py
+python scripts/integration/test_new_schema.py
 ```
 
 ### **API Health Check**
 ```bash
-curl http://localhost:8008/api/health
+curl http://localhost:8000/api/health
 ```
 
 ### **Sample Test Queries**
@@ -108,12 +106,12 @@ curl http://localhost:8008/api/health
 # Arithmetic (instant response)
 curl -X POST -H "Content-Type: application/json" \
   -d '{"query": "What is 25*4+10?"}' \
-  http://localhost:8008/api/infer
+  http://localhost:8000/api/infer
 
 # Business Analytics  
 curl -X POST -H "Content-Type: application/json" \
   -d '{"query": "Show me profit margins by product category with a chart"}' \
-  http://localhost:8008/api/infer
+  http://localhost:8000/api/infer
 ```
 
 ---
@@ -159,9 +157,17 @@ The system includes a comprehensive 7-table business database:
 ### **Environment Variables**
 ```bash
 # API Configuration
-API_HOST=localhost
-API_PORT=8008
-API_DEBUG=false
+API_HOST=0.0.0.0
+API_PORT=8000
+
+# CORS — comma-separated list of origins allowed to call the API
+CORS_ALLOW_ORIGINS=http://localhost:8501,http://127.0.0.1:8501
+
+# Optional LLM cache. `memory` (default when set to 1/true/yes) caches
+# identical (model, prompt, temperature) tuples in-process. Use `sqlite`
+# for a persistent cache (path via LLM_CACHE_PATH; needs langchain-community).
+LLM_CACHE=memory
+# LLM_CACHE_PATH=./.llm_cache.sqlite
 
 # Database
 DATABASE_URL=sqlite:///./data.db
@@ -243,7 +249,7 @@ python -c "import matplotlib; print(matplotlib.get_backend())"
 #### **API Connection Issues**
 ```bash
 # Test API connectivity
-curl http://localhost:8008/api/health
+curl http://localhost:8000/api/health
 
 # Check logs
 tail -f logs/app.log
@@ -253,7 +259,7 @@ tail -f logs/app.log
 
 ## 📚 **Documentation**
 
-- **API Documentation**: http://localhost:8008/docs (when running)
+- **API Documentation**: http://localhost:8000/docs (when running)
 - **Database Schema**: `DATABASE_SCHEMA.md`
 - **Sample Queries**: `SAMPLE_QUERIES.md`
 - **Enhanced Features**: `ENHANCED_FEATURES.md`

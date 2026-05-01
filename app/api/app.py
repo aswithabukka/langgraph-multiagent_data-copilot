@@ -15,6 +15,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.endpoints import router
 from app.db.database import init_db
 
+
+def _parse_cors_origins() -> list[str]:
+    """Read allowed CORS origins from CORS_ALLOW_ORIGINS env (comma-separated)."""
+    raw = os.getenv(
+        "CORS_ALLOW_ORIGINS",
+        "http://localhost:8501,http://127.0.0.1:8501",
+    )
+    return [o.strip() for o in raw.split(",") if o.strip()]
+
 # Load environment variables from .env file
 dotenv.load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
@@ -50,13 +59,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Add CORS middleware
+# Add CORS middleware (origins controlled via CORS_ALLOW_ORIGINS env)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins
+    allow_origins=_parse_cors_origins(),
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # Include router
