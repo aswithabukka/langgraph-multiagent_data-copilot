@@ -1,143 +1,122 @@
 """
 Tests for the LangGraph workflow.
 
-This module tests the graph routing logic and workflow execution.
+Covers two things:
+  * `route_next` (pure routing logic, no LLM, no DB) — exhaustively.
+  * `create_graph` — smoke test that the compiled graph builds.
 """
 
-import pytest
+from langgraph.graph import END
 
-from app.agents.graph import create_graph
+from app.agents.graph import create_graph, route_next
 from app.models.state import GraphState, PlanStep
 
 
-def test_graph_creation():
-    """Test that the graph can be created successfully."""
-    graph = create_graph()
-    assert graph is not None
+def _step(requires_sql: bool = True, requires_chart: bool = False) -> PlanStep:
+    return PlanStep(
+        step_number=1,
+        action="Generate SQL",
+        description="x",
+        requires_sql=requires_sql,
+        requires_chart=requires_chart,
+    )
 
 
-def test_graph_routing():
-    """Test the graph routing logic with different states."""
-    # Create the graph
-    graph = create_graph()
-    
-    # Test routing to planner first
-    state = GraphState(user_query="What is the total sales by region?")
-    next_node = graph.get_next_node(state)
-    assert next_node == "planner"
-    
-    # Test routing to SQL after planner
+def test_create_graph_builds():
+    assert create_graph() is not None
+
+
+def test_route_starts_at_planner():
+    state = GraphState(user_query="how many orders are there")
+    assert route_next(state) == "planner"
+
+
+def test_route_planner_to_sql_when_sql_required():
     state = GraphState(
-        user_query="What is the total sales by region?",
+        user_query="how many orders",
         completed_agents=["planner"],
-        plan=[
-            PlanStep(
-                step_number=1,
-                action="Generate SQL",
-                description="Generate SQL to get total sales by region",
-                requires_sql=True,
-                requires_chart=True,
-            )
-        ],
+        plan=[_step(requires_sql=True)],
     )
-    next_node = graph.get_next_node(state)
-    assert next_node == "sql"
-    
-    # Test routing to chart after SQL
+    assert route_next(state) == "sql"
+
+
+def test_route_sql_to_chart_when_chart_required():
     state = GraphState(
-        user_query="What is the total sales by region?",
+        user_query="show me sales by region as a bar chart",
         completed_agents=["planner", "sql"],
-        plan=[
-            PlanStep(
-                step_number=1,
-                action="Generate SQL",
-                description="Generate SQL to get total sales by region",
-                requires_sql=True,
-                requires_chart=True,
-            )
-        ],
-        sql="SELECT region, SUM(sales_amount) FROM orders GROUP BY region",
-        rows=[{"region": "North", "sum": 1000}],
+        plan=[_step(requires_sql=True, requires_chart=True)],
+        sql="SELECT region, SUM(x) FROM orders GROUP BY region",
+        rows=[{"region": "N", "sum": 1}],
     )
-    next_node = graph.get_next_node(state)
-    assert next_node == "chart"
-    
-    # Test routing to explainer after chart
+    assert route_next(state) == "chart"
+
+
+def test_route_chart_to_explainer():
     state = GraphState(
-        user_query="What is the total sales by region?",
+        user_query="show me sales by region as a bar chart",
         completed_agents=["planner", "sql", "chart"],
-        plan=[
-            PlanStep(
-                step_number=1,
-                action="Generate SQL",
-                description="Generate SQL to get total sales by region",
-                requires_sql=True,
-                requires_chart=True,
-            )
-        ],
-        sql="SELECT region, SUM(sales_amount) FROM orders GROUP BY region",
-        rows=[{"region": "North", "sum": 1000}],
-        chart_path="/path/to/chart.png",
+        plan=[_step(requires_sql=True, requires_chart=True)],
+        sql="SELECT 1",
+        rows=[{"region": "N", "sum": 1}],
+        chart_path="/tmp/chart.png",
     )
-    next_node = graph.get_next_node(state)
-    assert next_node == "explainer"
-    
-    # Test routing to end after explainer
+    assert route_next(state) == "explainer"
+
+
+def test_route_terminates_after_explainer():
     state = GraphState(
-        user_query="What is the total sales by region?",
+        user_query="how many orders",
         completed_agents=["planner", "sql", "chart", "explainer"],
-        plan=[
-            PlanStep(
-                step_number=1,
-                action="Generate SQL",
-                description="Generate SQL to get total sales by region",
-                requires_sql=True,
-                requires_chart=True,
-            )
-        ],
-        sql="SELECT region, SUM(sales_amount) FROM orders GROUP BY region",
-        rows=[{"region": "North", "sum": 1000}],
-        chart_path="/path/to/chart.png",
-        answer="The total sales for the North region is $1000.",
+        plan=[_step()],
+        answer="There are 27 orders.",
     )
-    next_node = graph.get_next_node(state)
-    assert next_node == "__end__"
-    
-    # Test direct routing with next_agent
-    state = GraphState(
-        user_query="What is the total sales by region?",
-        next_agent="chart",
-    )
-    next_node = graph.get_next_node(state)
-    assert next_node == "chart"
-    
-    # Test routing to end with next_agent
-    state = GraphState(
-        user_query="What is the total sales by region?",
-        next_agent="end",
-    )
-    next_node = graph.get_next_node(state)
-    assert next_node == "__end__"
+    assert route_next(state) == END
 
 
-def test_non_sql_routing():
-    """Test routing for non-SQL questions."""
-    # Create the graph
-    graph = create_graph()
-    
-    # Test routing for a non-SQL question
+def test_route_explicit_next_agent_wins():
+    state = GraphState(user_query="x", next_agent="chart")
+    assert route_next(state) == "chart"
+
+
+def test_route_explicit_next_agent_end():
+    state = GraphState(user_query="x", next_agent="end")
+    assert route_next(state) == END
+
+
+def test_route_skips_completed_next_agent():
+    # If the agent was already completed, fall back to sequential routing.
     state = GraphState(
-        user_query="What is 2+2?",
+        user_query="x",
+        completed_agents=["planner", "sql"],
+        plan=[_step(requires_sql=True)],
+        next_agent="sql",  # already done
+    )
+    # No chart required → should advance to explainer.
+    assert route_next(state) == "explainer"
+
+
+def test_route_max_steps_breaks_loops():
+    # 4 completed agents = hard limit, return END no matter what.
+    state = GraphState(
+        user_query="x",
+        completed_agents=["planner", "sql", "chart", "explainer"],
+        plan=[_step()],
+    )
+    assert route_next(state) == END
+
+
+def test_route_skips_sql_when_plan_does_not_need_it():
+    state = GraphState(
+        user_query="what is 2+2",
         completed_agents=["planner"],
         plan=[
             PlanStep(
                 step_number=1,
                 action="Answer directly",
-                description="Answer the arithmetic question directly",
+                description="arithmetic",
                 requires_sql=False,
                 requires_chart=False,
             )
         ],
     )
-    next_node = graph.get_next_node(state)
-    assert next_node == "explainer"
+    assert route_next(state) == "explainer"

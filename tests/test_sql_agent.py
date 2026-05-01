@@ -49,18 +49,18 @@ def test_extract_sql_query():
 
 
 def test_validate_sql_query():
-    """Test SQL query validation."""
-    # Valid queries
-    assert validate_sql_query("SELECT * FROM orders")
-    assert validate_sql_query("SELECT region, SUM(sales_amount) FROM orders GROUP BY region")
-    
-    # Invalid queries
-    assert not validate_sql_query("INSERT INTO orders VALUES (1, 2, 'Product')")
-    assert not validate_sql_query("UPDATE orders SET region = 'North'")
-    assert not validate_sql_query("DELETE FROM orders")
-    assert not validate_sql_query("DROP TABLE orders")
-    assert not validate_sql_query("CREATE TABLE new_table (id INT)")
-    assert not validate_sql_query("SELECT * FROM orders; DELETE FROM orders")
+    """`validate_sql_query` returns (is_valid, error). Test the bool."""
+    assert validate_sql_query("SELECT * FROM orders")[0]
+    assert validate_sql_query(
+        "SELECT region, SUM(sales_amount) FROM orders GROUP BY region"
+    )[0]
+
+    assert not validate_sql_query("INSERT INTO orders VALUES (1, 2, 'Product')")[0]
+    assert not validate_sql_query("UPDATE orders SET region = 'North'")[0]
+    assert not validate_sql_query("DELETE FROM orders")[0]
+    assert not validate_sql_query("DROP TABLE orders")[0]
+    assert not validate_sql_query("CREATE TABLE new_table (id INT)")[0]
+    assert not validate_sql_query("SELECT * FROM orders; DELETE FROM orders")[0]
 
 
 @pytest.mark.asyncio
